@@ -1,2 +1,1 @@
-﻿b6404d56ff0b42dea80039ed1f703458526645:Data Scientist
-eb0f964eff0b3079f70039ed1f4f5165526c43:Python разрабочик
+resume_id:resume_name
