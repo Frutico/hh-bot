@@ -1,9 +1,33 @@
 from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 import time
 import random
 import logging
 import requests
+
+def scroll_to_element(driver, element):
+    actions = ActionChains(driver)
+    actions.move_to_element(element).perform()
+
+
+def click_element(driver, by, selector):
+    try:
+        element = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((by, selector))
+        )
+        scroll_to_element(driver, element)  # Scroll to the element before clicking
+        # Use JavaScript to click at the center of the element, ignoring obscuring elements
+        driver.execute_script("arguments[0].click();", element)
+        logging.info(f"Successfully clicked on element with selector: {selector}")
+    except Exception as e:
+        logging.warning(f"Unable to click on element with selector: {selector}. Error: {e}")
+
+
+
 
 def select_resume(resume_name):
     resumes = driver.find_elements(By.CSS_SELECTOR, "span.bloko-radio__text")
@@ -15,15 +39,18 @@ def select_resume(resume_name):
 
 def fill_response_letter():
     try:
-        driver.find_element(By.CSS_SELECTOR, "button[data-qa='vacancy-response-letter-toggle']").click()
+        click_element(driver, By.CSS_SELECTOR, "button[data-qa='vacancy-response-letter-toggle']")
     except:
-        logging.warning("Unable to find toggle button 'response_letter'. Trying find 'response_letter' textarea.")
+        logging.warning("Unable to find toggle button 'response_letter'. Trying to find 'response_letter' textarea.")
+
     try:
-        textarea = driver.find_element(By.CSS_SELECTOR, "textarea[data-qa='vacancy-response-popup-form-letter-input']")
+        textarea = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "textarea[data-qa='vacancy-response-popup-form-letter-input']"))
+        )
         with open('letter.txt') as f:
             letter_text = f.read()
         textarea.send_keys(letter_text)
-        logging.info("Textarea 'response_letter' found.")
+        logging.info("Textarea 'response_letter' found and filled.")
     except:
         logging.warning("Unable to find 'response_letter' textarea. Skipping response letter.")
 
@@ -31,11 +58,14 @@ def fill_response_letter():
 def send_resume(resume_name, vacancy_url):
     global today_resume_send
     select_resume(resume_name)
-    fill_response_letter()
-    driver.find_element(By.CSS_SELECTOR, "button[data-qa='vacancy-response-submit-popup']").click
-    today_resume_send += 1
-    logging.info(f"Job application {vacancy_url} successfully submitted")
-    logging.info(f"Resumes has been submitted today: {today_resume_send}")
+
+    try:
+        click_element(driver, By.CSS_SELECTOR, "button[data-qa='vacancy-response-submit-popup']")
+        today_resume_send += 1
+        logging.info(f"Job application {vacancy_url} successfully submitted")
+        logging.info(f"Resumes have been submitted today: {today_resume_send}")
+    except:
+        logging.warning("Unable to find send resume button")
 
 
 def vacancy_have_test(vacancy_id):
@@ -56,7 +86,7 @@ def send_resume_for_all_page_vacancies(resume_id):
             time.sleep(random.randint(4, 8))
             send_resume(resume_id, vacancy_url)
         else:
-            logging.warning(f"Vacancy {vacancy.get_attribute('href')} have a test. Skipping.")
+            logging.warning(f"Vacancy {vacancy.get_attribute('href')} has a test. Skipping.")
         time.sleep(random.randint(1, 5))
 
 
@@ -97,7 +127,7 @@ def main():
         resume_id, resume_name = resume.split(":")
         url = f"https://spb.hh.ru/search/vacancy?resume={resume_id}"
         driver.get(url)
-        send_resume_for_all_page_vacancies(resume_name)
+        ## send_resume_for_all_page_vacancies(resume_name)
         while driver.find_elements(By.CSS_SELECTOR, "a[data-qa='pager-next']"):
             send_resume_for_all_page_vacancies(resume_name)
 
